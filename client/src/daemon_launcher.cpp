@@ -23,15 +23,14 @@ void daemon_launcher::start() {
     }
 }
 
-std::unique_ptr<simpleipc::client::service_client_impl> daemon_launcher::open() {
+void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     struct stat s;
     stat(service_path.c_str(), &s);
     if (S_ISSOCK(s.st_mode)) {
         // try open
         try {
-            auto impl = simpleipc::client::service_client_impl_factory::create_platform_service();
-            impl->open(service_path);
-            return impl;
+            impl.open(service_path);
+            return;
         } catch (std::exception& e) {
             // open failed
             Log::info("DaemonLauncher", "Daemon file exists, but we could not open it (%s); "
@@ -60,7 +59,13 @@ std::unique_ptr<simpleipc::client::service_client_impl> daemon_launcher::open() 
     }
     close(fd);
 
+    impl.open(service_path);
+}
+
+std::unique_ptr<simpleipc::client::service_client_impl> daemon_launcher::open() {
     auto impl = simpleipc::client::service_client_impl_factory::create_platform_service();
-    impl->open(service_path);
+    auto* impl_ref = impl.get();
+    impl->set_reconnect_handler([this, impl_ref]() { open(*impl_ref); });
+    open(*impl);
     return impl;
 }

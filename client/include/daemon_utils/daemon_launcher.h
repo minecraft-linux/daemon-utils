@@ -10,6 +10,8 @@ class daemon_launcher {
 protected:
     std::string service_path;
 
+    void open(simpleipc::client::service_client_impl& impl);
+
 public:
     daemon_launcher(std::string const& service_path) : service_path(service_path) {}
 
