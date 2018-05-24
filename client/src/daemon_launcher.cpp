@@ -10,9 +10,11 @@
 using namespace daemon_utils;
 
 void daemon_launcher::start() {
+    std::string cwd = get_cwd();
     std::vector<std::string> args = get_arguments();
     if (!fork()) {
         setsid();
+        chdir(cwd.c_str());
         char** argv = (char**) alloca(sizeof(char*) * (args.size() + 1));
         for (int i = 0; i < args.size(); i++)
             argv[i] = &args[i][0];
