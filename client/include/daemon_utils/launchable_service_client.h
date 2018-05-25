@@ -9,7 +9,8 @@ class launchable_service_client : public simpleipc::client::service_client {
 
 private:
     daemon_launcher& launcher;
-    std::atomic_bool shutting_down;
+    bool shutting_down;
+    std::mutex shutting_down_mutex;
 
 public:
     explicit launchable_service_client(daemon_launcher& launcher) : service_client(
@@ -22,11 +23,13 @@ public:
     }
 
     ~launchable_service_client() override {
+        std::lock_guard<std::mutex> lock (shutting_down_mutex);
         shutting_down = true;
     }
 
 protected:
     void connection_closed() override {
+        std::lock_guard<std::mutex> lock (shutting_down_mutex);
         service_client::connection_closed();
         if (!shutting_down)
             launcher.open(get_impl());
