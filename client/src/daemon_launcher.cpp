@@ -63,11 +63,3 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
 
     impl.open(service_path);
 }
-
-std::unique_ptr<simpleipc::client::service_client_impl> daemon_launcher::open() {
-    auto impl = simpleipc::client::service_client_impl_factory::create_platform_service();
-    auto* impl_ref = impl.get();
-    impl->set_reconnect_handler([this, impl_ref]() { open(*impl_ref); });
-    open(*impl);
-    return impl;
-}
