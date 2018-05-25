@@ -20,7 +20,8 @@ private:
     std::mutex shutdown_mutex;
     std::condition_variable shutdown_cv;
 
-    void request_stop();
+protected:
+    virtual void request_stop();
 
 public:
     auto_shutdown_service(std::unique_ptr<simpleipc::server::service_impl> impl, shutdown_policy policy)
