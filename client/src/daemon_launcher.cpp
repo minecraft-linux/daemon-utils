@@ -3,9 +3,12 @@
 #include <cstdio>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/inotify.h>
 #include <FileUtil.h>
 #include <log.h>
+
+#ifndef __APPLE__
+#include <sys/inotify.h>
+#endif
 
 using namespace daemon_utils;
 
@@ -25,6 +28,7 @@ void daemon_launcher::start() {
     }
 }
 
+#ifndef __APPLE__
 void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     struct stat s;
     stat(service_path.c_str(), &s);
@@ -63,3 +67,4 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
 
     impl.open(service_path);
 }
+#endif
