@@ -25,6 +25,7 @@ void daemon_launcher::start() {
         Log::trace("DaemonLauncher", "Starting daemon: %s", argv[0]);
         int r = execv(argv[0], argv);
         printf("execv error %i\n", r);
+        _exit(1);
     }
 }
 
