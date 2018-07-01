@@ -15,7 +15,7 @@ public:
 
     virtual ~daemon_launcher() {}
 
-    virtual void start();
+    virtual pid_t start();
 
     virtual std::vector<std::string> get_arguments() = 0;
 
