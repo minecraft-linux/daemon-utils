@@ -30,7 +30,7 @@ pid_t daemon_launcher::start() {
         argv[args.size()] = nullptr;
         Log::trace("DaemonLauncher", "Starting daemon: %s", argv[0]);
         int r = execv(argv[0], argv);
-        Log::error("DaemonLauncher", "execv error %i\n", r);
+        Log::error("DaemonLauncher", "execv error %i", r);
         _exit(1);
     }
     if (ret < 0)
