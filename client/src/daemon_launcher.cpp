@@ -60,6 +60,14 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     int wd = inotify_add_watch(fd, FileUtil::getParent(service_path).c_str(), IN_CREATE);
     if (wd < 0)
         throw std::runtime_error("inotify_add_watch failed");
+    std::string service_filename;
+    {
+        auto iof = service_path.rfind('/');
+        if (iof != std::string::npos)
+            service_filename = service_path.substr(iof + 1);
+        else
+            service_filename = service_path;
+    }
 
     // Try to open the file again, in case the service was stated in the meanwhile
     stat(service_path.c_str(), &s);
@@ -89,7 +97,7 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     }, [&stop_promise](int fd) {
         stop_promise.set_value();
     });
-    simpleipc::io_handler::get_instance().add_socket(fd, [wd, &stop_promise](int fd) {
+    simpleipc::io_handler::get_instance().add_socket(fd, [wd, &stop_promise, service_filename](int fd) {
         unsigned int av;
         ioctl(fd, FIONREAD, &av);
         bool bufs = av < 1024 * 16;
@@ -105,7 +113,7 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
         while (o < av) {
             inotify_event& event = *((inotify_event*) &buf[o]);
             if (event.wd == wd) {
-                if (strncmp(event.name, "service", event.len) == 0)
+                if (strncmp(event.name, service_filename.c_str(), event.len) == 0)
                     stop_promise.set_value();
             }
             o += sizeof(inotify_event) + event.len;
