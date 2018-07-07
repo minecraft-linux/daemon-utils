@@ -53,12 +53,10 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
 
     pid_t proc = start();
 
-    struct kevent k_ev;
-    EV_SET(&k_ev, f, EVFILT_VNODE, EV_ADD | EV_CLEAR, NOTE_WRITE, 0, NULL);
-    kevent(kq, &k_ev, 1, NULL, 0, NULL);
-
-    EV_SET(&k_ev, proc, EVFILT_PROC, EV_ADD | EV_CLEAR, NOTE_EXIT, 0, NULL);
-    kevent(kq, &k_ev, 1, NULL, 0, NULL);
+    struct kevent k_ev[2];
+    EV_SET(&k_ev[0], f, EVFILT_VNODE, EV_ADD | EV_CLEAR, NOTE_WRITE, 0, NULL);
+    EV_SET(&k_ev[1], proc, EVFILT_PROC, EV_ADD | EV_CLEAR, NOTE_EXIT, 0, NULL);
+    kevent(kq, k_ev, 2, NULL, 0, NULL);
 
     struct kevent ev_set;
     struct kevent ev_list[2];
