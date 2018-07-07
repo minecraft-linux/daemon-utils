@@ -44,10 +44,8 @@ pid_t daemon_launcher::start() {
     return ret;
 }
 
-#include <iostream>
-
-#ifdef __APPLE__
 void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
+#ifdef __APPLE__
     remove(service_path.c_str());
 
     int kq = kqueue();
@@ -70,16 +68,13 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     timeout.tv_sec = 10;
     timeout.tv_nsec = 0;
 
-    n = kevent(kq, NULL, 0, ev_list, 2, &timeout);
-
     // If the process dies or a file is created, open
-    for(int i = 0; i < n; i++) {
-        if(ev_list[i].fflags & NOTE_EXIT) {
-            impl.open(service_path);
-        }
-
-        if(ev_list[i].fflags & NOTE_WRITE) {
-            impl.open(service_path);
+    while(true) {
+        n = kevent(kq, NULL, 0, ev_list, 2, &timeout);
+        for(int i = 0; i < n; i++) {
+            if (ev_list[i].fflags & NOTE_EXIT || ev_list[i].fflags & NOTE_WRITE) {
+                break;
+            }
         }
     }
 
@@ -87,9 +82,7 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     close(kq);
 
     impl.open(service_path);
-}
 #else
-void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     struct stat s;
     stat(service_path.c_str(), &s);
     if (S_ISSOCK(s.st_mode)) {
@@ -181,5 +174,5 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     close(fd);
 
     impl.open(service_path);
-}
 #endif
+}
