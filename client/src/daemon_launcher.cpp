@@ -6,7 +6,13 @@
 #include <FileUtil.h>
 #include <log.h>
 
-#ifndef __APPLE__
+#ifdef __APPLE__
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
+#include <time.h>
+#include <fcntl.h>
+#else
 #include <sys/inotify.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
@@ -38,7 +44,51 @@ pid_t daemon_launcher::start() {
     return ret;
 }
 
-#ifndef __APPLE__
+#include <iostream>
+
+#ifdef __APPLE__
+void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
+    remove(service_path.c_str());
+
+    int kq = kqueue();
+    int f = ::open(FileUtil::getParent(service_path).c_str(), O_RDONLY);
+
+    pid_t proc = start();
+
+    struct kevent k_ev;
+    EV_SET(&k_ev, f, EVFILT_VNODE, EV_ADD | EV_CLEAR, NOTE_WRITE, 0, NULL);
+    kevent(kq, &k_ev, 1, NULL, 0, NULL);
+
+    EV_SET(&k_ev, proc, EVFILT_PROC, EV_ADD | EV_CLEAR, NOTE_EXIT, 0, NULL);
+    kevent(kq, &k_ev, 1, NULL, 0, NULL);
+
+    struct kevent ev_set;
+    struct kevent ev_list[2];
+    int n;
+
+    struct timespec timeout;
+    timeout.tv_sec = 10;
+    timeout.tv_nsec = 0;
+
+    n = kevent(kq, NULL, 0, ev_list, 2, &timeout);
+
+    // If the process dies or a file is created, open
+    for(int i = 0; i < n; i++) {
+        if(ev_list[i].fflags & NOTE_EXIT) {
+            impl.open(service_path);
+        }
+
+        if(ev_list[i].fflags & NOTE_WRITE) {
+            impl.open(service_path);
+        }
+    }
+
+    close(f);
+    close(kq);
+
+    impl.open(service_path);
+}
+#else
 void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     struct stat s;
     stat(service_path.c_str(), &s);
