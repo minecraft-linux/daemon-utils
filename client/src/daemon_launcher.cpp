@@ -92,9 +92,15 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
         n = kevent(kq, NULL, 0, ev_list, 2, &timeout);
         bool should_exit = false;
         for(int i = 0; i < n; i++) {
-            if (ev_list[i].fflags & NOTE_EXIT || ev_list[i].fflags & NOTE_WRITE) {
+            if (ev_list[i].fflags & NOTE_EXIT) { // Process exited
                 should_exit = true;
                 break;
+            }
+            if (ev_list[i].fflags & NOTE_WRITE) { // Change happened in the directory
+                if (access(service_path.c_str(), F_OK) == 0) {
+                    should_exit = true;
+                    break;
+                }
             }
         }
         if (should_exit)
