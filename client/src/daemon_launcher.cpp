@@ -7,6 +7,7 @@
 #include <log.h>
 
 #ifdef __APPLE__
+#include <chrono>
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
@@ -45,6 +46,20 @@ pid_t daemon_launcher::start() {
 }
 
 void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
+    struct stat s;
+    stat(service_path.c_str(), &s);
+    if (S_ISSOCK(s.st_mode)) {
+        // try open
+        try {
+            impl.open(service_path);
+            return;
+        } catch (std::exception& e) {
+            // open failed
+            Log::info("DaemonLauncher", "Daemon file exists, but we could not open it (%s); "
+                    "starting the service anyways", e.what());
+        }
+    }
+
 #ifdef __APPLE__
     remove(service_path.c_str());
 
@@ -62,18 +77,28 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     struct kevent ev_list[2];
     int n;
 
-    struct timespec timeout;
-    timeout.tv_sec = 10;
-    timeout.tv_nsec = 0;
+    auto wait_until = std::chrono::system_clock::now() + std::chrono::seconds(10);
 
     // If the process dies or a file is created, open
     while(true) {
+        long long remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                wait_until - std::chrono::system_clock::now()).count();
+        if (remaining <= 50) // exit the loop anyways if we're only 50ms from reaching the end time
+            break;
+
+        struct timespec timeout;
+        timeout.tv_sec = (int) remaining / 1000;
+        timeout.tv_nsec =  (int) (remaining % 1000) * 1000;
         n = kevent(kq, NULL, 0, ev_list, 2, &timeout);
+        bool should_exit = false;
         for(int i = 0; i < n; i++) {
             if (ev_list[i].fflags & NOTE_EXIT || ev_list[i].fflags & NOTE_WRITE) {
+                should_exit = true;
                 break;
             }
         }
+        if (should_exit)
+            break;
     }
 
     close(f);
@@ -81,19 +106,6 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
 
     impl.open(service_path);
 #else
-    struct stat s;
-    stat(service_path.c_str(), &s);
-    if (S_ISSOCK(s.st_mode)) {
-        // try open
-        try {
-            impl.open(service_path);
-            return;
-        } catch (std::exception& e) {
-            // open failed
-            Log::info("DaemonLauncher", "Daemon file exists, but we could not open it (%s); "
-                    "starting the service anyways", e.what());
-        }
-    }
     // Start the service and wait for the service file to show up
     int fd = inotify_init();
     if (fd < 0)
@@ -170,7 +182,7 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     simpleipc::io_handler::get_instance().remove_socket(fd);
     close(sfd);
     close(fd);
+#endif
 
     impl.open(service_path);
-#endif
 }
