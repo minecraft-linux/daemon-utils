@@ -64,7 +64,9 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     remove(service_path.c_str());
 
     int kq = kqueue();
-    int f = ::open(FileUtil::getParent(service_path).c_str(), O_RDONLY);
+    std::string dir = FileUtil::getParent(service_path);
+    FileUtil::mkdirRecursive(dir);
+    int f = ::open(dir.c_str(), O_RDONLY);
 
     pid_t proc = start();
 
@@ -116,7 +118,9 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     int fd = inotify_init();
     if (fd < 0)
         throw std::runtime_error("inotify_init failed");
-    int wd = inotify_add_watch(fd, FileUtil::getParent(service_path).c_str(), IN_CREATE);
+    std::string dir = FileUtil::getParent(service_path);
+    FileUtil::mkdirRecursive(dir);
+    int wd = inotify_add_watch(fd, dir.c_str(), IN_CREATE);
     if (wd < 0)
         throw std::runtime_error("inotify_add_watch failed");
     std::string service_filename;
