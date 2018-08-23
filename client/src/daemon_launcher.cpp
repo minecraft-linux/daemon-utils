@@ -111,8 +111,6 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
 
     close(f);
     close(kq);
-
-    impl.open(service_path);
 #else
     // Start the service and wait for the service file to show up
     int fd = inotify_init();
