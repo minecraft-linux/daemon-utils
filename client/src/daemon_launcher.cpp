@@ -47,8 +47,7 @@ pid_t daemon_launcher::start() {
 
 void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     struct stat s;
-    stat(service_path.c_str(), &s);
-    if (S_ISSOCK(s.st_mode)) {
+    if (!stat(service_path.c_str(), &s) && S_ISSOCK(s.st_mode)) {
         // try open
         try {
             impl.open(service_path);
@@ -131,8 +130,7 @@ void daemon_launcher::open(simpleipc::client::service_client_impl& impl) {
     }
 
     // Try to open the file again, in case the service was stated in the meanwhile
-    stat(service_path.c_str(), &s);
-    if (S_ISSOCK(s.st_mode)) {
+    if (!stat(service_path.c_str(), &s) && S_ISSOCK(s.st_mode)) {
         try {
             impl.open(service_path);
             close(fd);
