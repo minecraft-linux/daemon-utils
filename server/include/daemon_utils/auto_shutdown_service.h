@@ -16,7 +16,7 @@ class auto_shutdown_service : public simpleipc::server::service {
 private:
     shutdown_policy shutdown_mode;
     int connections = 0;
-    bool requested_shutdown;
+    bool requested_shutdown = false;
     std::mutex shutdown_mutex;
     std::condition_variable shutdown_cv;
 
